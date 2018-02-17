@@ -2,122 +2,127 @@
 #include "MatrixStack.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-using namespace std;
+static const int MaxMatrixSize = 100;
 
-MatrixStack::MatrixStack() {
 
-   mstack = make_shared< stack<mat4> >();
-   mstack->push(mat4(1.0));
+MatrixStack::MatrixStack()
+{
+	stack.push(glm::mat4(1.0));
 }
-
-MatrixStack::~MatrixStack() { }
 
 void MatrixStack::pushMatrix()
 {
-	const mat4 &top = mstack->top();
-   mstack->push(top);
-   assert(mstack->size() < 100);
+	const glm::mat4 &top = stack.top();
+	stack.push(top);
+	assert(stack.size() < MaxMatrixSize);
 }
 
 void MatrixStack::popMatrix()
 {
-   assert(!mstack->empty());
-   mstack->pop();
-   // There should always be one matrix left.
-   assert(!mstack->empty());
+	assert(!stack.empty());
+	stack.pop();
+
+	// There should always be one matrix left.
+	assert(!stack.empty());
 }
 
 void MatrixStack::loadIdentity()
 {
-   mat4 &top = mstack->top();
-   top = glm::mat4(1);
+	glm::mat4 &top = stack.top();
+	top = glm::mat4(1.f);
 }
 
-void MatrixStack::translate(const vec3 &offset)
+void MatrixStack::perspective(float fovy, float aspect, float zNear, float zFar)
 {
-   mat4 &top = mstack->top();
-	mat4 t = glm::translate(mat4(1.0), offset);
+	glm::mat4 &top = stack.top();
+	top *= glm::perspective(fovy, aspect, zNear, zFar);
+}
+
+void MatrixStack::translate(const glm::vec3 &offset)
+{
+	glm::mat4 &top = stack.top();
+	glm::mat4 t = glm::translate(glm::mat4(1.f), offset);
 	top *= t;
 }
 
-void MatrixStack::scale(const vec3 &scaleV)
+void MatrixStack::scale(const glm::vec3 &scaleV)
 {
-   mat4 &top = mstack->top();
-	mat4 s = glm::scale(mat4(1.0), scaleV);
+	glm::mat4 &top = stack.top();
+	glm::mat4 s = glm::scale(glm::mat4(1.f), scaleV);
 	top *= s;
 }
 
 void MatrixStack::scale(float size)
 {
-   mat4 &top = mstack->top();
-	mat4 s = glm::scale(mat4(1.0), vec3(size));
+	glm::mat4 &top = stack.top();
+	glm::mat4 s = glm::scale(glm::mat4(1.f), glm::vec3(size));
 	top *= s;
 }
 
-void MatrixStack::rotate(float angle, const vec3 &axis)
+void MatrixStack::rotate(float angle, const glm::vec3 &axis)
 {
-   mat4 &top = mstack->top();
-	mat4 r = glm::rotate(mat4(1.0), angle, axis);
+	glm::mat4 &top = stack.top();
+	glm::mat4 r = glm::rotate(glm::mat4(1.0), angle, axis);
 	top *= r;
 }
 
 void MatrixStack::multMatrix(const glm::mat4 &matrix)
 {
-   mat4 &top = mstack->top();
+	glm::mat4 &top = stack.top();
 	top *= matrix;
 }
 
 void MatrixStack::ortho(float left, float right, float bottom, float top, float zNear, float zFar)
 {
-   assert(left != right);
-   assert(bottom != top);
-   assert(zFar != zNear);
-   mat4 &ctm = mstack->top();
-   ctm *= glm::ortho(left, right, bottom, top, zNear, zFar);
+	assert(left != right);
+	assert(bottom != top);
+	assert(zFar != zNear);
+
+	glm::mat4 &ctm = stack.top();
+	ctm *= glm::ortho(left, right, bottom, top, zNear, zFar);
 }
 
 void MatrixStack::frustum(float left, float right, float bottom, float top, float zNear, float zFar)
 {
-   mat4 &ctm = mstack->top();
+	glm::mat4 &ctm = stack.top();
 	ctm *= glm::frustum(left, right, bottom, top, zNear, zFar);
 }
 
-void MatrixStack::lookAt(vec3 eye, vec3 target, vec3 up)
+void MatrixStack::lookAt(const glm::vec3 &eye, const glm::vec3 &target, const glm::vec3 &up)
 {
-   mat4 &top = mstack->top();
+	glm::mat4 &top = stack.top();
 	top *= glm::lookAt(eye, target, up);
 }
 
-void MatrixStack::perspective(float fovy, float aspect, float zNear, float zFar)
+const glm::mat4 &MatrixStack::topMatrix() const
 {
-   mat4 &top = mstack->top();
-	top *= glm::perspective(fovy, aspect, zNear, zFar);
+	return stack.top();
 }
 
-const glm::mat4 &MatrixStack::topMatrix()
+void MatrixStack::print(const glm::mat4 &mat, const char *name)
 {
-	return mstack->top();
-}
+	if (name)
+	{
+		printf("%s = [\n", name);
+	}
 
-void MatrixStack::print(const mat4 &mat, const char *name) const
-{
-   if(name) {
-      printf("%s = [\n", name);
-   }
-   for(int i = 0; i < 4; ++i) {
-      for(int j = 0; j < 4; ++j) {
-         printf("%- 5.2f ", mat[i][j]);
-      }
-      printf("\n");
-   }
-   if(name) {
-      printf("];");
-   }
-   printf("\n");
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			printf("%- 5.2f ", mat[i][j]);
+		}
+		printf("\n");
+	}
+
+	if (name)
+	{
+		printf("];");
+	}
+	printf("\n");
 }
 
 void MatrixStack::print(const char *name) const
 {
-   print(mstack->top(), name);
+	print(stack.top(), name);
 }
-

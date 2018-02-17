@@ -5,38 +5,21 @@
 //
 
 #pragma once
-#ifndef __GLSL__
-#define __GLSL__
+#ifndef LAB471_GLSL_H_INCLUDED
+#define LAB471_GLSL_H_INCLUDED
 
-#define GLEW_STATIC
-#include <GL/glew.h>
+#include <glad/glad.h>
+#include <string>
 
-///////////////////////////////////////////////////////////////////////////////
-// For printing out the current file and line number                         //
-///////////////////////////////////////////////////////////////////////////////
-#include <sstream>
 
-template <typename T>
-std::string NumberToString(T x)
+namespace GLSL
 {
-   std::ostringstream ss;
-   ss << x;
-   return ss.str();
-}
 
-#define GET_FILE_LINE (std::string(__FILE__) + ":" + NumberToString(__LINE__)).c_str()
-///////////////////////////////////////////////////////////////////////////////
-
-
-namespace GLSL {
-
-	int printError();
+	void printOpenGLErrors(char const * const Function, char const * const File, int const Line);
+	void checkError(const char *str = 0);
 	void printProgramInfoLog(GLuint program);
 	void printShaderInfoLog(GLuint shader);
 	void checkVersion();
-   void checkError(const char *str = 0);
-	int textFileWrite(const char *filename, char *s);
-	char *textFileRead(const char *filename);
 	GLint getAttribLocation(const GLuint program, const char varname[], bool verbose = true);
 	GLint getUniformLocation(const GLuint program, const char varname[], bool verbose = true);
 	void enableVertexAttribArray(const GLint handle);
@@ -44,4 +27,11 @@ namespace GLSL {
 	void vertexAttribPointer(const GLint handle, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid *pointer);
 }
 
+
+#ifndef DISABLE_OPENGL_ERROR_CHECKS
+#define CHECKED_GL_CALL(x) do { GLSL::printOpenGLErrors("{{BEFORE}} "#x, __FILE__, __LINE__); (x); GLSL::printOpenGLErrors(#x, __FILE__, __LINE__); } while (0)
+#else
+#define CHECKED_GL_CALL(x) (x)
 #endif
+
+#endif // LAB471_GLSL_H_INCLUDED

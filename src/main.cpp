@@ -1,31 +1,42 @@
 /* Base code for shadow mapping lab */
 /* This code is incomplete - follow tasks listed in handout */
+
+#include <stdio.h>
+#include <stdlib.h>
 #include <iostream>
-#define GLEW_STATIC
-#include <GL/glew.h>
+#include <memory>
+#include <cassert>
+#include <cmath>
+#include <stdio.h>
+#include <time.h>
+
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <tiny_obj_loader/tiny_obj_loader.h>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "GLSL.h"
 #include "Program.h"
-#include "MatrixStack.h"
 #include "Shape.h"
 #include "Texture.h"
+#include "WindowManager.h"
 
-// value_ptr for glm
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-/* to use glee */
-#define GLEE_OVERWRITE_GL_FUNCTIONS
-#include "glee.hpp"
-
-void initQuad();
 
 using namespace std;
 using namespace glm;
 
-GLFWwindow *window; // Main application window
-string RESOURCE_DIR = ""; // Where the resources are loaded from
+
+
+class Application : public EventCallbacks
+{
+
+public:
+
+	WindowManager * windowManager = nullptr;
+
 shared_ptr<Program> DepthProg;
 shared_ptr<Program> DepthProgDebug;
 shared_ptr<Program> ShadowProg;
@@ -49,7 +60,7 @@ const GLuint S_WIDTH = 1024, S_HEIGHT = 1024;
 GLuint depthMap;
 
 float g_Camtrans = -2.5;
-glm::vec3 g_light(1, 1, 1);
+glm::vec3 g_light = glm::vec3(1, 1, 1);
 float updateDir = 0.5;
 double g_phi, g_theta;
 
@@ -64,12 +75,15 @@ GLuint GrndBuffObj, GrndNorBuffObj, GrndTexBuffObj, GIndxBuffObj;
 GLuint quad_VertexArrayID;
 GLuint quad_vertexbuffer;
 
-static void error_callback(int error, const char *description)
+void mouseCallback(GLFWwindow* window, int but, int action, int mods)
 {
-	cerr << description << endl;
 }
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+void cursorPosCallback(GLFWwindow* window, double xpos, double ypos)
+{
+}
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
    float speed = 0.2;
 
@@ -101,7 +115,8 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
      DEBUG_LIGHT = !DEBUG_LIGHT;
 }
 
-void scroll_callback(GLFWwindow* window, double deltaX, double deltaY) {
+void scrollCallback(GLFWwindow* window, double deltaX, double deltaY)
+{
   vec3 diff, newV;
    //cout << "xDel + yDel " << deltaX << " " << deltaY << endl;
    g_theta += deltaX;
@@ -119,14 +134,15 @@ void scroll_callback(GLFWwindow* window, double deltaX, double deltaY) {
    strafe = cross(vec3(0, 1,0), view);
 }
 
-static void resize_callback(GLFWwindow *window, int width, int height) {
-	g_width = width;
-	g_height = height;
-	glViewport(0, 0, width, height);
+void resizeCallback(GLFWwindow* window, int w, int h)
+{
+	g_width = w;
+	g_height = h;
+	glViewport(0, 0, w, h);
 }
 
 /* code to define the ground plane */
-static void initGeom() {
+void initGeom() {
 
    float g_groundSize = 20;
    float g_groundY = -1.5;
@@ -231,7 +247,7 @@ void initShadow() {
 }
 
 
-static void init()
+void init(string const & RESOURCE_DIR)
 {
 	GLSL::checkVersion();
 
@@ -331,7 +347,7 @@ static void init()
 
 void SetProjectionMatrix(shared_ptr<Program> curShade) {
 	int width, height;
-   glfwGetFramebufferSize(window, &width, &height);
+   glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
    float aspect = width/(float)height;
   	mat4 Projection = perspective(radians(50.0f), aspect, 0.1f, 100.0f);
 	glUniformMatrix4fv(curShade->getUniform("P"), 1, GL_FALSE, value_ptr(Projection));
@@ -418,12 +434,12 @@ void drawScene(shared_ptr<Program> shader, GLint texID, int TexOn) {
 }
 
 /* let's draw */
-static void render() {
+void render() {
 
 	mat4 LSpace;
 	// Get current frame buffer size.
 	int width, height;
-	glfwGetFramebufferSize(window, &width, &height);
+	glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 
 	if (shadow) {
 	  //set up light's depth map
@@ -494,80 +510,46 @@ static void render() {
 	}
 }
 
+};
+
 int main(int argc, char **argv)
 {
+	// Where the resources are loaded from
+	std::string resourceDir = "../resources/";
 
-	g_width = 1024;
-	g_height = 1024;
-	/* we will always need to load external shaders to set up where */
-	if(argc < 2) {
-      cout << "Please specify the resource directory." << endl;
-      return 0;
-   }
-   RESOURCE_DIR = argv[1] + string("/");
-
-	/* your main will always include a similar set up to establish your window
-      and GL context, etc. */
-
-	// Set error callback as openGL will report errors but they need a call back
-	glfwSetErrorCallback(error_callback);
-	// Initialize the library.
-	if(!glfwInit()) {
-		return -1;
-	}
-	//request the highest possible version of OGL - important for mac
-	
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-
-	// Create a windowed mode window and its OpenGL context.
-	window = glfwCreateWindow(g_width, g_height, "shadows", NULL, NULL);
-	if(!window) {
-		glfwTerminate();
-		return -1;
-	}
-	// Make the window's context current.
-	glfwMakeContextCurrent(window);
-	// Initialize GLEW.
-	glewExperimental = true;
-	if(glewInit() != GLEW_OK) {
-		cerr << "Failed to initialize GLEW" << endl;
-		return -1;
+	if (argc >= 2)
+	{
+		resourceDir = argv[1];
 	}
 
-	glGetError();
-	cout << "OpenGL version: " << glGetString(GL_VERSION) << endl;
-	cout << "GLSL version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << endl;
+	Application *application = new Application();
 
-	// Set vsync.
-	glfwSwapInterval(1);
-	// Set keyboard callback.
-	glfwSetKeyCallback(window, key_callback);
-   glfwSetScrollCallback(window, scroll_callback);
-	//set the window resize call back
-	glfwSetFramebufferSizeCallback(window, resize_callback);
+	// Your main will always include a similar set up to establish your window
+	// and GL context, etc.
 
-	/* This is the code that will likely change program to program as you
-		may need to initialize or set up different data and state */
-	// Initialize scene.
-	initGeom();
-	cout << "done initializing geometry" << endl;
-	init();
-	cout << "done initializing shaders" << endl;
+	WindowManager *windowManager = new WindowManager();
+	windowManager->init(1024, 768);
+	windowManager->setEventCallbacks(application);
+	application->windowManager = windowManager;
+
+	// This is the code that will likely change program to program as you
+	// may need to initialize or set up different data and state
+
+	application->init(resourceDir);
 
 	// Loop until the user closes the window.
-	while(!glfwWindowShouldClose(window)) {
+	while (! glfwWindowShouldClose(windowManager->getHandle()))
+	{
 		// Render scene.
-		render();
+		application->render();
+
 		// Swap front and back buffers.
-		glfwSwapBuffers(window);
+		glfwSwapBuffers(windowManager->getHandle());
 		// Poll for and process events.
 		glfwPollEvents();
 	}
+
 	// Quit program.
-	glfwDestroyWindow(window);
-	glfwTerminate();
+	windowManager->shutdown();
 	return 0;
 }
