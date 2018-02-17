@@ -62,7 +62,7 @@ public:
 	float g_Camtrans = -2.5;
 	glm::vec3 g_light = glm::vec3(1, 1, 1);
 	float updateDir = 0.5;
-	double g_phi, g_theta;
+	float g_phi, g_theta;
 
 	vec3 view = vec3(0, 0, 1);
 	vec3 strafe = vec3(1, 0, 0);
@@ -85,7 +85,7 @@ public:
 
 	void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
-		float speed = 0.2;
+		float speed = 0.2f;
 
 		if (key == GLFW_KEY_A && action == GLFW_PRESS) {
 			g_eye -= speed * strafe;
@@ -119,11 +119,11 @@ public:
 	{
 		vec3 diff, newV;
 		//cout << "xDel + yDel " << deltaX << " " << deltaY << endl;
-		g_theta += deltaX;
-		g_phi += deltaY;
-		newV.x = cosf(g_phi*(3.14 / 180.0))*cosf(g_theta*(3.14 / 180.0));
-		newV.y = -1.0*sinf(g_phi*(3.14 / 180.0));
-		newV.z = 1.0*cosf(g_phi*(3.14 / 180.0))*cosf((90.0 - g_theta)*(3.14 / 180.0));
+		g_theta += (float) deltaX;
+		g_phi += (float) deltaY;
+		newV.x = cosf(g_phi*(3.14f / 180.0f))*cosf(g_theta*(3.14f / 180.0f));
+		newV.y = -1.0f*sinf(g_phi*(3.14f / 180.0f));
+		newV.z = 1.0f*cosf(g_phi*(3.14f / 180.0f))*cosf((90.0f - g_theta)*(3.14f / 180.0f));
 		diff.x = (g_lookAt.x - g_eye.x) - newV.x;
 		diff.y = (g_lookAt.y - g_eye.y) - newV.y;
 		diff.z = (g_lookAt.z - g_eye.z) - newV.z;
