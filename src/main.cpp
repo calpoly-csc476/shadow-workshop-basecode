@@ -59,15 +59,7 @@ public:
 	const GLuint S_WIDTH = 1024, S_HEIGHT = 1024;
 	GLuint depthMap;
 
-	float g_Camtrans = -2.5;
 	glm::vec3 g_light = glm::vec3(1, 1, 1);
-	float updateDir = 0.5;
-	float g_phi, g_theta;
-
-	vec3 view = vec3(0, 0, 1);
-	vec3 strafe = vec3(1, 0, 0);
-	vec3 g_eye = vec3(0, 1, 0);
-	vec3 g_lookAt = vec3(0, 1, -4);
 
 	//global data for ground plane
 	GLuint GrndBuffObj, GrndNorBuffObj, GrndTexBuffObj, GIndxBuffObj;
@@ -75,63 +67,108 @@ public:
 	GLuint quad_VertexArrayID;
 	GLuint quad_vertexbuffer;
 
+
+	/////////////////
+	// Camera Data //
+	/////////////////
+
+	// Previous frame start time (for time-based movement)
+	float t0 = 0;
+
+	vec3 cameraLookAt;
+
+	float cTheta = - 3.14159f / 2.f;
+	float cPhi = 0;
+	bool mouseDown = false;
+
+	double lastX = 0;
+	double lastY = 0;
+	float cameraRotateSpeed = 0.005f;
+
+	bool moveForward = false;
+	bool moveBack = false;
+	bool moveLeft = false;
+	bool moveRight = false;
+	glm::vec3 cameraPos;
+	float cameraMoveSpeed = 12.0f;
+
+
 	void mouseCallback(GLFWwindow* window, int but, int action, int mods)
 	{
+		if (action == GLFW_PRESS)
+		{
+			mouseDown = true;
+		}
+
+		if (action == GLFW_RELEASE)
+		{
+			mouseDown = false;
+		}
 	}
 
 	void cursorPosCallback(GLFWwindow* window, double xpos, double ypos)
 	{
+		if (mouseDown)
+		{
+			cTheta += (float) (xpos - lastX) * cameraRotateSpeed;
+			cPhi -= (float) (ypos - lastY) * cameraRotateSpeed;
+		}
+
+		lastX = xpos;
+		lastY = ypos;
 	}
 
 	void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
-		float speed = 0.2f;
+		switch (key)
+		{
+		case GLFW_KEY_W:
+			moveForward = (action != GLFW_RELEASE);
+			break;
+		case GLFW_KEY_S:
+			moveBack = (action != GLFW_RELEASE);
+			break;
+		case GLFW_KEY_A:
+			moveLeft = (action != GLFW_RELEASE);
+			break;
+		case GLFW_KEY_D:
+			moveRight = (action != GLFW_RELEASE);
+			break;
+		};
 
-		if (key == GLFW_KEY_A && action == GLFW_PRESS) {
-			g_eye -= speed * strafe;
-			g_lookAt -= speed * strafe;
+		if (action == GLFW_RELEASE)
+		{
+			switch (key)
+			{
+			case GLFW_KEY_1:
+				cameraMoveSpeed = 1.f;
+				break;
+			case GLFW_KEY_2:
+				cameraMoveSpeed = 3.f;
+				break;
+			case GLFW_KEY_3:
+				cameraMoveSpeed = 6.f;
+				break;
+			case GLFW_KEY_4:
+				cameraMoveSpeed = 12.f;
+				break;
+			case GLFW_KEY_5:
+				cameraMoveSpeed = 24.f;
+				break;
+			}
 		}
-		if (key == GLFW_KEY_D && action == GLFW_PRESS) {
-			g_eye += speed * strafe;
-			g_lookAt += speed * strafe;
-		}
-		if (key == GLFW_KEY_W && action == GLFW_PRESS) {
-			g_eye -= speed * view;
-			g_lookAt -= speed * view;
-		}
-		if (key == GLFW_KEY_S && action == GLFW_PRESS) {
-			g_eye += speed * view;
-			g_lookAt += speed * view;
-		}
+
+
 		if (key == GLFW_KEY_Q && action == GLFW_PRESS)
 			g_light.x += 0.25;
 		if (key == GLFW_KEY_E && action == GLFW_PRESS)
 			g_light.x -= 0.25;
-		if (key == GLFW_KEY_M && action == GLFW_PRESS)
-			g_Camtrans += 0.25;
-		if (key == GLFW_KEY_N && action == GLFW_PRESS)
-			g_Camtrans -= 0.25;
 		if (key == GLFW_KEY_L && action == GLFW_PRESS)
 			DEBUG_LIGHT = !DEBUG_LIGHT;
 	}
 
 	void scrollCallback(GLFWwindow* window, double deltaX, double deltaY)
 	{
-		vec3 diff, newV;
-		//cout << "xDel + yDel " << deltaX << " " << deltaY << endl;
-		g_theta += (float) deltaX;
-		g_phi += (float) deltaY;
-		newV.x = cosf(g_phi*(3.14f / 180.0f))*cosf(g_theta*(3.14f / 180.0f));
-		newV.y = -1.0f*sinf(g_phi*(3.14f / 180.0f));
-		newV.z = 1.0f*cosf(g_phi*(3.14f / 180.0f))*cosf((90.0f - g_theta)*(3.14f / 180.0f));
-		diff.x = (g_lookAt.x - g_eye.x) - newV.x;
-		diff.y = (g_lookAt.y - g_eye.y) - newV.y;
-		diff.z = (g_lookAt.z - g_eye.z) - newV.z;
-		g_lookAt.x = g_lookAt.x - diff.x;
-		g_lookAt.y = g_lookAt.y - diff.y;
-		g_lookAt.z = g_lookAt.z - diff.z;
-		view = g_eye - g_lookAt;
-		strafe = cross(vec3(0, 1, 0), view);
 	}
 
 	void resizeCallback(GLFWwindow* window, int w, int h)
@@ -141,34 +178,45 @@ public:
 		glViewport(0, 0, w, h);
 	}
 
-	/* code to define the ground plane */
-	void initGeom() {
+	// Create Geometry
+	void initGeom()
+	{
+		initGround();
+		initQuad();
+	}
 
+	// Create the ground plane
+	void initGround()
+	{
 		float g_groundSize = 20;
 		float g_groundY = -1.5;
 
 		// A x-z plane at y = g_groundY of dimension [-g_groundSize, g_groundSize]^2
-		float GrndPos[] = {
-		-g_groundSize, g_groundY, -g_groundSize,
-		-g_groundSize, g_groundY,  g_groundSize,
-		 g_groundSize, g_groundY,  g_groundSize,
-		 g_groundSize, g_groundY, -g_groundSize
+		float GrndPos[] =
+		{
+			-g_groundSize, g_groundY, -g_groundSize,
+			-g_groundSize, g_groundY,  g_groundSize,
+			 g_groundSize, g_groundY,  g_groundSize,
+			 g_groundSize, g_groundY, -g_groundSize,
 		};
 
-		float GrndNorm[] = {
-		 0, 1, 0,
-		 0, 1, 0,
-		 0, 1, 0,
-		 0, 1, 0,
-		 0, 1, 0,
-		 0, 1, 0
+		float GrndNorm[] =
+		{
+			0, 1, 0,
+			0, 1, 0,
+			0, 1, 0,
+			0, 1, 0,
+			0, 1, 0,
+			0, 1, 0,
 		};
 
-		static GLfloat GrndTex[] = {
+		static GLfloat GrndTex[] =
+		{
 			0, 0, // back
 			0, 1,
 			1, 1,
-			1, 0 };
+			1, 0,
+		};
 
 		unsigned short idx[] = { 0, 1, 2, 0, 2, 3 };
 
@@ -193,36 +241,34 @@ public:
 		glGenBuffers(1, &GIndxBuffObj);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GIndxBuffObj);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idx), idx, GL_STATIC_DRAW);
-
-		initQuad();
 	}
 
 	/**** geometry set up for a quad *****/
-	void initQuad() {
-
+	void initQuad()
+	{
 		//now set up a simple quad for rendering FBO
 		glGenVertexArrays(1, &quad_VertexArrayID);
 		glBindVertexArray(quad_VertexArrayID);
 
-		static const GLfloat g_quad_vertex_buffer_data[] = {
-		 -1.0f, -1.0f, 0.0f,
-		 1.0f, -1.0f, 0.0f,
-		 -1.0f,  1.0f, 0.0f,
-		 -1.0f,  1.0f, 0.0f,
-		 1.0f, -1.0f, 0.0f,
-		 1.0f,  1.0f, 0.0f,
+		static const GLfloat g_quad_vertex_buffer_data[] =
+		{
+			-1.0f, -1.0f,  0.0f,
+			 1.0f, -1.0f,  0.0f,
+			-1.0f,  1.0f,  0.0f,
+			-1.0f,  1.0f,  0.0f,
+			 1.0f, -1.0f,  0.0f,
+			 1.0f,  1.0f,  0.0f,
 		};
 
 		glGenBuffers(1, &quad_vertexbuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
-
 	}
 
 
 	/* set up the FBO for the light's depth */
-	void initShadow() {
-
+	void initShadow()
+	{
 		//generate the FBO for the shadow depth
 		glGenFramebuffers(1, &depthMapFBO);
 
@@ -250,9 +296,6 @@ public:
 	void init(string const & RESOURCE_DIR)
 	{
 		GLSL::checkVersion();
-
-		g_phi = 0;
-		g_theta = -90;
 
 		// Set background color.
 		glClearColor(0.5f, 0.5f, 1.0f, 1.0f);
@@ -290,9 +333,10 @@ public:
 		DebugProg->setVerbose(true);
 		DebugProg->setShaderNames(RESOURCE_DIR + "pass_vert.glsl", RESOURCE_DIR + "pass_texfrag.glsl");
 		DebugProg->init();
+
 		//////////////////////////////////////////////////////
-	   // Intialize textures
-	   //////////////////////////////////////////////////////
+		// Intialize textures
+		//////////////////////////////////////////////////////
 		texture0 = make_shared<Texture>();
 		texture0->setFilename(RESOURCE_DIR + "crate.jpg");
 		texture0->init();
@@ -311,12 +355,12 @@ public:
 		texture2->setUnit(0);
 		texture2->setWrapModes(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
-		/// Add uniform and attributes to each of the programs
+		// Add uniform and attributes to each of the programs
 		DepthProg->addUniform("LP");
 		DepthProg->addUniform("LV");
 		DepthProg->addUniform("M");
 		DepthProg->addAttribute("vertPos");
-		//un-needed, but easier then modifying shape
+		// un-needed, but easier then modifying shape
 		DepthProg->addAttribute("vertNor");
 		DepthProg->addAttribute("vertTex");
 
@@ -324,7 +368,7 @@ public:
 		DepthProgDebug->addUniform("LV");
 		DepthProgDebug->addUniform("M");
 		DepthProgDebug->addAttribute("vertPos");
-		//un-needed, but easier then modifying shape
+		// un-needed, but easier then modifying shape
 		DepthProgDebug->addAttribute("vertNor");
 		DepthProgDebug->addAttribute("vertTex");
 
@@ -345,7 +389,8 @@ public:
 		initShadow();
 	}
 
-	void SetProjectionMatrix(shared_ptr<Program> curShade) {
+	void SetProjectionMatrix(shared_ptr<Program> curShade)
+	{
 		int width, height;
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		float aspect = width / (float) height;
@@ -354,7 +399,8 @@ public:
 	}
 
 	/* TODO fix */
-	mat4 SetOrthoMatrix(shared_ptr<Program> curShade) {
+	mat4 SetOrthoMatrix(shared_ptr<Program> curShade)
+	{
 		mat4 OP = glm::ortho(-10.0, 10.0, -10.0, 10.0, 0.1, 30.0);
 		//fill in the glUniform call to send to the right shader!
 		glUniformMatrix4fv(curShade->getUniform("LP"), 1, GL_FALSE, value_ptr(OP));
@@ -362,13 +408,15 @@ public:
 	}
 
 	/* camera controls - do not change */
-	void SetView(shared_ptr<Program> curShade) {
-		mat4 Cam = glm::lookAt(g_eye, g_lookAt, vec3(0, 1, 0));
+	void SetView(shared_ptr<Program> curShade)
+	{
+		mat4 Cam = glm::lookAt(cameraPos, cameraLookAt, vec3(0, 1, 0));
 		glUniformMatrix4fv(curShade->getUniform("V"), 1, GL_FALSE, value_ptr(Cam));
 	}
 
 	/* TODO fix */
-	mat4 SetLightView(shared_ptr<Program> curShade, vec3 pos, vec3 LA, vec3 up) {
+	mat4 SetLightView(shared_ptr<Program> curShade, vec3 pos, vec3 LA, vec3 up)
+	{
 		mat4 Cam = glm::lookAt(pos, LA, up);
 		//fill in the glUniform call to send to the right shader!
 		glUniformMatrix4fv(curShade->getUniform("LV"), 1, GL_FALSE, value_ptr(Cam));
@@ -376,13 +424,15 @@ public:
 	}
 
 	/* model transforms */
-	void SetModel(vec3 trans, float rotY, float rotX, float sc, shared_ptr<Program> curS) {
+	void SetModel(vec3 trans, float rotY, float rotX, float sc, shared_ptr<Program> curS)
+	{
 		mat4 Trans = glm::translate(glm::mat4(1.0f), trans);
 		mat4 ctm = Trans;
 		glUniformMatrix4fv(curS->getUniform("M"), 1, GL_FALSE, value_ptr(ctm));
 	}
 
-	void SetModel(mat4 ctm, shared_ptr<Program> curS) {
+	void SetModel(mat4 ctm, shared_ptr<Program> curS)
+	{
 		glUniformMatrix4fv(curS->getUniform("M"), 1, GL_FALSE, value_ptr(ctm));
 	}
 
@@ -390,23 +440,26 @@ public:
 	Draw the dog, sphere and ground plane
 	Textures can be turned on an off (as shadow map depth drawing does not need textures)
 	*/
-	void drawScene(shared_ptr<Program> shader, GLint texID, int TexOn) {
-
-		if (TexOn) {
+	void drawScene(shared_ptr<Program> shader, GLint texID, int TexOn)
+	{
+		if (TexOn)
+		{
 			texture0->bind(texID);
 		}
 		//draw the dog mesh
 		SetModel(vec3(-1, 0, -5), 0, 0, 1, shader);
 		shape->draw(shader);
 
-		if (TexOn) {
+		if (TexOn)
+		{
 			texture1->bind(texID);
 		}
 		//draw the world sphere
 		SetModel(vec3(1, 0, -5), 0, 0, 1, shader);
 		world->draw(shader);
 
-		if (TexOn) {
+		if (TexOn)
+		{
 			texture2->bind(texID);
 		}
 		//draw the ground plane only if not shadow mapping
@@ -434,14 +487,35 @@ public:
 	}
 
 	/* let's draw */
-	void render() {
+	void render()
+	{
+		float t1 = (float) glfwGetTime();
+
+		float const dT = (t1 - t0);
+		t0 = t1;
+
+		glm::vec3 up = glm::vec3(0, 1, 0);
+		glm::vec3 forward = glm::vec3(cos(cTheta) * cos(cPhi), sin(cPhi), sin(cTheta) * cos(cPhi));
+		glm::vec3 right = glm::cross(forward, up);
+
+		if (moveForward)
+			cameraPos += forward * cameraMoveSpeed * dT;
+		if (moveBack)
+			cameraPos -= forward * cameraMoveSpeed * dT;
+		if (moveLeft)
+			cameraPos -= right * cameraMoveSpeed * dT;
+		if (moveRight)
+			cameraPos += right * cameraMoveSpeed * dT;
+
+		cameraLookAt = cameraPos + forward;
 
 		mat4 LSpace;
 		// Get current frame buffer size.
 		int width, height;
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 
-		if (shadow) {
+		if (shadow)
+		{
 			//set up light's depth map
 			glViewport(0, 0, S_WIDTH, S_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
@@ -467,11 +541,13 @@ public:
 		// Clear framebuffer.
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		if (DEBUG_LIGHT) {
+		if (DEBUG_LIGHT)
+		{
 			/* code to draw the light depth buffer */
 			//geometry style debug on light - test transforms, draw geometry from light
 			//perspective
-			if (GEOM_DEBUG) {
+			if (GEOM_DEBUG)
+			{
 				DepthProgDebug->bind();
 				//render scene from light's point of view
 				SetOrthoMatrix(DepthProgDebug);
@@ -479,7 +555,8 @@ public:
 				drawScene(DepthProgDebug, ShadowProg->getUniform("Texture0"), 0);
 				DepthProgDebug->unbind();
 			}
-			else {
+			else
+			{
 				//actually draw the light depth map
 				DebugProg->bind();
 				glActiveTexture(GL_TEXTURE0);
@@ -493,7 +570,8 @@ public:
 				DebugProg->unbind();
 			}
 		}
-		else {
+		else
+		{
 			//now render the scene like normal
 			//set up shadow shader
 			ShadowProg->bind();
