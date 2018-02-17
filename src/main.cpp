@@ -62,6 +62,7 @@ public:
 	glm::vec3 g_light = glm::vec3(1, 1, 1);
 
 	//global data for ground plane
+	GLuint GroundVertexArrayID;
 	GLuint GrndBuffObj, GrndNorBuffObj, GrndTexBuffObj, GIndxBuffObj;
 	//geometry for texture render
 	GLuint quad_VertexArrayID;
@@ -220,27 +221,34 @@ public:
 
 		unsigned short idx[] = { 0, 1, 2, 0, 2, 3 };
 
-		GLuint VertexArrayID;
 		//generate the VAO
-		glGenVertexArrays(1, &VertexArrayID);
-		glBindVertexArray(VertexArrayID);
+		CHECKED_GL_CALL(glGenVertexArrays(1, &GroundVertexArrayID));
+		CHECKED_GL_CALL(glBindVertexArray(GroundVertexArrayID));
+
+		CHECKED_GL_CALL(glGenBuffers(1, &GrndBuffObj));
+		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, GrndBuffObj));
+		CHECKED_GL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(GrndPos), GrndPos, GL_STATIC_DRAW));
+		CHECKED_GL_CALL(glEnableVertexAttribArray(0));
+		CHECKED_GL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0));
+
+		CHECKED_GL_CALL(glGenBuffers(1, &GrndNorBuffObj));
+		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, GrndNorBuffObj));
+		CHECKED_GL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(GrndNorm), GrndNorm, GL_STATIC_DRAW));
+		CHECKED_GL_CALL(glEnableVertexAttribArray(1));
+		CHECKED_GL_CALL(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0));
+
+		CHECKED_GL_CALL(glGenBuffers(1, &GrndTexBuffObj));
+		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, GrndTexBuffObj));
+		CHECKED_GL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(GrndTex), GrndTex, GL_STATIC_DRAW));
+		CHECKED_GL_CALL(glEnableVertexAttribArray(2));
+		CHECKED_GL_CALL(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0));
 
 		g_GiboLen = 6;
-		glGenBuffers(1, &GrndBuffObj);
-		glBindBuffer(GL_ARRAY_BUFFER, GrndBuffObj);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GrndPos), GrndPos, GL_STATIC_DRAW);
+		CHECKED_GL_CALL(glGenBuffers(1, &GIndxBuffObj));
+		CHECKED_GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GIndxBuffObj));
+		CHECKED_GL_CALL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idx), idx, GL_STATIC_DRAW));
 
-		glGenBuffers(1, &GrndNorBuffObj);
-		glBindBuffer(GL_ARRAY_BUFFER, GrndNorBuffObj);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GrndNorm), GrndNorm, GL_STATIC_DRAW);
-
-		glGenBuffers(1, &GrndTexBuffObj);
-		glBindBuffer(GL_ARRAY_BUFFER, GrndTexBuffObj);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GrndTex), GrndTex, GL_STATIC_DRAW);
-
-		glGenBuffers(1, &GIndxBuffObj);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GIndxBuffObj);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idx), idx, GL_STATIC_DRAW);
+		CHECKED_GL_CALL(glBindVertexArray(0));
 	}
 
 	/**** geometry set up for a quad *****/
@@ -263,6 +271,8 @@ public:
 		glGenBuffers(1, &quad_vertexbuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+
+		glBindVertexArray(0);
 	}
 
 
@@ -462,28 +472,12 @@ public:
 		{
 			texture2->bind(texID);
 		}
-		//draw the ground plane only if not shadow mapping
+
+		//draw the ground plane
 		SetModel(vec3(0, -1, 0), 0, 0, 1, shader);
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, GrndBuffObj);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-		glEnableVertexAttribArray(1);
-		glBindBuffer(GL_ARRAY_BUFFER, GrndNorBuffObj);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-		glEnableVertexAttribArray(2);
-		glBindBuffer(GL_ARRAY_BUFFER, GrndTexBuffObj);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
-
-		// draw!
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GIndxBuffObj);
-		glDrawElements(GL_TRIANGLES, g_GiboLen, GL_UNSIGNED_SHORT, 0);
-
-		glDisableVertexAttribArray(0);
-		glDisableVertexAttribArray(1);
-		glDisableVertexAttribArray(2);
-
+		CHECKED_GL_CALL(glBindVertexArray(GroundVertexArrayID));
+		CHECKED_GL_CALL(glDrawElements(GL_TRIANGLES, g_GiboLen, GL_UNSIGNED_SHORT, 0));
+		CHECKED_GL_CALL(glBindVertexArray(0));
 	}
 
 	/* let's draw */
@@ -616,6 +610,7 @@ int main(int argc, char **argv)
 	// may need to initialize or set up different data and state
 
 	application->init(resourceDir);
+	application->initGeom();
 
 	// Loop until the user closes the window.
 	while (! glfwWindowShouldClose(windowManager->getHandle()))
