@@ -50,8 +50,6 @@ public:
 
 	int DEBUG_LIGHT = 0;
 	int GEOM_DEBUG = 0;
-	int g_GiboLen;
-	int g_width, g_height;
 	int shadow = 1;
 	int FirstTime = 1;
 
@@ -62,8 +60,9 @@ public:
 	glm::vec3 g_light = glm::vec3(1, 1, 1);
 
 	//global data for ground plane
-	GLuint GroundVertexArrayID;
-	GLuint GrndBuffObj, GrndNorBuffObj, GrndTexBuffObj, GIndxBuffObj;
+	GLuint GroundVertexArray;
+	int GroundIndexCount;
+
 	//geometry for texture render
 	GLuint quad_VertexArrayID;
 	GLuint quad_vertexbuffer;
@@ -137,7 +136,7 @@ public:
 			break;
 		};
 
-		if (action == GLFW_RELEASE)
+		if (action == GLFW_PRESS)
 		{
 			switch (key)
 			{
@@ -156,16 +155,19 @@ public:
 			case GLFW_KEY_5:
 				cameraMoveSpeed = 24.f;
 				break;
+
+			case GLFW_KEY_Q:
+				g_light.x += 0.25;
+				break;
+			case GLFW_KEY_E:
+				g_light.x -= 0.25;
+				break;
+
+			case GLFW_KEY_L:
+				DEBUG_LIGHT = !DEBUG_LIGHT;
+				break;
 			}
 		}
-
-
-		if (key == GLFW_KEY_Q && action == GLFW_PRESS)
-			g_light.x += 0.25;
-		if (key == GLFW_KEY_E && action == GLFW_PRESS)
-			g_light.x -= 0.25;
-		if (key == GLFW_KEY_L && action == GLFW_PRESS)
-			DEBUG_LIGHT = !DEBUG_LIGHT;
 	}
 
 	void scrollCallback(GLFWwindow* window, double deltaX, double deltaY)
@@ -174,9 +176,6 @@ public:
 
 	void resizeCallback(GLFWwindow* window, int w, int h)
 	{
-		g_width = w;
-		g_height = h;
-		glViewport(0, 0, w, h);
 	}
 
 	// Create Geometry
@@ -189,19 +188,19 @@ public:
 	// Create the ground plane
 	void initGround()
 	{
-		float g_groundSize = 20;
-		float g_groundY = -1.5;
+		const float groundSize = 20;
+		const float groundY = -1.5;
 
 		// A x-z plane at y = g_groundY of dimension [-g_groundSize, g_groundSize]^2
-		float GrndPos[] =
+		const float GrndPos[] =
 		{
-			-g_groundSize, g_groundY, -g_groundSize,
-			-g_groundSize, g_groundY,  g_groundSize,
-			 g_groundSize, g_groundY,  g_groundSize,
-			 g_groundSize, g_groundY, -g_groundSize,
+			-groundSize, groundY, -groundSize,
+			-groundSize, groundY,  groundSize,
+			 groundSize, groundY,  groundSize,
+			 groundSize, groundY, -groundSize,
 		};
 
-		float GrndNorm[] =
+		const float GrndNorm[] =
 		{
 			0, 1, 0,
 			0, 1, 0,
@@ -211,7 +210,7 @@ public:
 			0, 1, 0,
 		};
 
-		static GLfloat GrndTex[] =
+		const float GrndTex[] =
 		{
 			0, 0, // back
 			0, 1,
@@ -221,40 +220,41 @@ public:
 
 		unsigned short idx[] = { 0, 1, 2, 0, 2, 3 };
 
-		//generate the VAO
-		CHECKED_GL_CALL(glGenVertexArrays(1, &GroundVertexArrayID));
-		CHECKED_GL_CALL(glBindVertexArray(GroundVertexArrayID));
+		CHECKED_GL_CALL(glGenVertexArrays(1, &GroundVertexArray));
+		CHECKED_GL_CALL(glBindVertexArray(GroundVertexArray));
 
-		CHECKED_GL_CALL(glGenBuffers(1, &GrndBuffObj));
-		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, GrndBuffObj));
+		GLuint GroundPositionBuffer, GroundNormalBuffer, GroundTexCoordBuffer, GroundIndexBuffer;
+
+		CHECKED_GL_CALL(glGenBuffers(1, &GroundPositionBuffer));
+		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, GroundPositionBuffer));
 		CHECKED_GL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(GrndPos), GrndPos, GL_STATIC_DRAW));
 		CHECKED_GL_CALL(glEnableVertexAttribArray(0));
 		CHECKED_GL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0));
 
-		CHECKED_GL_CALL(glGenBuffers(1, &GrndNorBuffObj));
-		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, GrndNorBuffObj));
+		CHECKED_GL_CALL(glGenBuffers(1, &GroundNormalBuffer));
+		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, GroundNormalBuffer));
 		CHECKED_GL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(GrndNorm), GrndNorm, GL_STATIC_DRAW));
 		CHECKED_GL_CALL(glEnableVertexAttribArray(1));
 		CHECKED_GL_CALL(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0));
 
-		CHECKED_GL_CALL(glGenBuffers(1, &GrndTexBuffObj));
-		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, GrndTexBuffObj));
+		CHECKED_GL_CALL(glGenBuffers(1, &GroundTexCoordBuffer));
+		CHECKED_GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, GroundTexCoordBuffer));
 		CHECKED_GL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(GrndTex), GrndTex, GL_STATIC_DRAW));
 		CHECKED_GL_CALL(glEnableVertexAttribArray(2));
 		CHECKED_GL_CALL(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0));
 
-		g_GiboLen = 6;
-		CHECKED_GL_CALL(glGenBuffers(1, &GIndxBuffObj));
-		CHECKED_GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GIndxBuffObj));
+		GroundIndexCount = 6;
+		CHECKED_GL_CALL(glGenBuffers(1, &GroundIndexBuffer));
+		CHECKED_GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GroundIndexBuffer));
 		CHECKED_GL_CALL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idx), idx, GL_STATIC_DRAW));
 
 		CHECKED_GL_CALL(glBindVertexArray(0));
 	}
 
-	/**** geometry set up for a quad *****/
+	// geometry set up for a quad
 	void initQuad()
 	{
-		//now set up a simple quad for rendering FBO
+		// now set up a simple quad for rendering FBO
 		glGenVertexArrays(1, &quad_VertexArrayID);
 		glBindVertexArray(quad_VertexArrayID);
 
@@ -276,13 +276,13 @@ public:
 	}
 
 
-	/* set up the FBO for the light's depth */
+	// set up the FBO for the light's depth
 	void initShadow()
 	{
-		//generate the FBO for the shadow depth
+		// generate the FBO for the shadow depth
 		glGenFramebuffers(1, &depthMapFBO);
 
-		//generate the texture
+		// generate the texture
 		glGenTextures(1, &depthMap);
 		glBindTexture(GL_TEXTURE_2D, depthMap);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, S_WIDTH, S_HEIGHT,
@@ -293,13 +293,12 @@ public:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-		//bind with framebuffer's depth buffer
+		// bind with framebuffer's depth buffer
 		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 	}
 
 
@@ -307,12 +306,12 @@ public:
 	{
 		GLSL::checkVersion();
 
-		// Set background color.
+		// Set background color
 		glClearColor(0.5f, 0.5f, 1.0f, 1.0f);
-		// Enable z-buffer test.
+		// Enable z-buffer test
 		glEnable(GL_DEPTH_TEST);
 
-		// Initialize mesh.
+		// Initialize mesh
 		shape = make_shared<Shape>();
 		shape->loadMesh(RESOURCE_DIR + "dog.obj");
 		shape->resize();
@@ -344,9 +343,10 @@ public:
 		DebugProg->setShaderNames(RESOURCE_DIR + "pass_vert.glsl", RESOURCE_DIR + "pass_texfrag.glsl");
 		DebugProg->init();
 
-		//////////////////////////////////////////////////////
-		// Intialize textures
-		//////////////////////////////////////////////////////
+		////////////////////////
+		// Intialize textures //
+		////////////////////////
+
 		texture0 = make_shared<Texture>();
 		texture0->setFilename(RESOURCE_DIR + "crate.jpg");
 		texture0->init();
@@ -474,8 +474,8 @@ public:
 
 		//draw the ground plane
 		SetModel(vec3(0, -1, 0), 0, 0, 1, shader);
-		CHECKED_GL_CALL(glBindVertexArray(GroundVertexArrayID));
-		CHECKED_GL_CALL(glDrawElements(GL_TRIANGLES, g_GiboLen, GL_UNSIGNED_SHORT, 0));
+		CHECKED_GL_CALL(glBindVertexArray(GroundVertexArray));
+		CHECKED_GL_CALL(glDrawElements(GL_TRIANGLES, GroundIndexCount, GL_UNSIGNED_SHORT, 0));
 		CHECKED_GL_CALL(glBindVertexArray(0));
 	}
 
@@ -503,22 +503,19 @@ public:
 		cameraLookAt = cameraPos + forward;
 
 		mat4 LSpace;
-		// Get current frame buffer size.
-		int width, height;
-		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 
 		if (shadow)
 		{
-			//set up light's depth map
+			// set up light's depth map
 			glViewport(0, 0, S_WIDTH, S_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 			glClear(GL_DEPTH_BUFFER_BIT);
 			glCullFace(GL_FRONT);
 
-			//set up shadow shader
-			//render scene
+			// set up shadow shader
+			// render scene
 			DepthProg->bind();
-			//TODO you will need to fix these
+			// TODO you will need to fix these
 			mat4 LO = SetOrthoMatrix(DepthProg);
 			mat4 LV = SetLightView(DepthProg, g_light, vec3(0, 0, 0), vec3(0, 1, 0));
 			drawScene(DepthProg, 0, 0);
@@ -530,6 +527,9 @@ public:
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		}
 
+		// Get current frame buffer size.
+		int width, height;
+		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		glViewport(0, 0, width, height);
 		// Clear framebuffer.
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -537,12 +537,12 @@ public:
 		if (DEBUG_LIGHT)
 		{
 			/* code to draw the light depth buffer */
-			//geometry style debug on light - test transforms, draw geometry from light
-			//perspective
+			// geometry style debug on light - test transforms, draw geometry from light
+			// perspective
 			if (GEOM_DEBUG)
 			{
 				DepthProgDebug->bind();
-				//render scene from light's point of view
+				// render scene from light's point of view
 				SetOrthoMatrix(DepthProgDebug);
 				SetLightView(DepthProgDebug, g_light, vec3(0, 0, 0), vec3(0, 1, 0));
 				drawScene(DepthProgDebug, ShadowProg->getUniform("Texture0"), 0);
@@ -550,7 +550,7 @@ public:
 			}
 			else
 			{
-				//actually draw the light depth map
+				// actually draw the light depth map
 				DebugProg->bind();
 				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -565,18 +565,18 @@ public:
 		}
 		else
 		{
-			//now render the scene like normal
-			//set up shadow shader
+			// now render the scene like normal
+			// set up shadow shader
 			ShadowProg->bind();
 			/* also set up light depth map */
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, depthMap);
 			glUniform1i(ShadowProg->getUniform("shadowDepth"), 1);
 			glUniform3f(ShadowProg->getUniform("lightDir"), g_light.x, g_light.y, g_light.z);
-			//render scene
+			// render scene
 			SetProjectionMatrix(ShadowProg);
 			SetView(ShadowProg);
-			//TODO: is there other uniform data that must be sent?
+			// TODO: is there other uniform data that must be sent?
 			glUniformMatrix4fv(ShadowProg->getUniform("LS"), 1, GL_FALSE, value_ptr(LSpace));
 			drawScene(ShadowProg, ShadowProg->getUniform("Texture0"), 1);
 			ShadowProg->unbind();
