@@ -48,8 +48,9 @@ public:
 	shared_ptr<Texture> texture1;
 	shared_ptr<Texture> texture2;
 
-	int DEBUG_LIGHT = 0;
-	int GEOM_DEBUG = 0;
+	bool DEBUG_LIGHT = false;
+	bool GEOM_DEBUG = false;
+
 	int shadow = 1;
 	int FirstTime = 1;
 
@@ -163,8 +164,11 @@ public:
 				g_light.x -= 0.25;
 				break;
 
+			case GLFW_KEY_G:
+				GEOM_DEBUG = ! GEOM_DEBUG;
+				break;
 			case GLFW_KEY_L:
-				DEBUG_LIGHT = !DEBUG_LIGHT;
+				DEBUG_LIGHT = ! DEBUG_LIGHT;
 				break;
 			}
 		}
