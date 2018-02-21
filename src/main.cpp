@@ -442,6 +442,7 @@ public:
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade)
 	{
 		mat4 ortho = mat4(1.0);
+
 		// fill in the glUniform call to send to the right shader!
 
 		return ortho;
@@ -458,7 +459,9 @@ public:
 	mat4 SetLightView(shared_ptr<Program> curShade, vec3 pos, vec3 LA, vec3 up)
 	{
 		mat4 Cam = mat4(1.0);
+
 		// fill in the glUniform call to send to the right shader!
+
 		return Cam;
 	}
 
