@@ -37,34 +37,36 @@ public:
 
 	WindowManager * windowManager = nullptr;
 
+	// Shaders
 	shared_ptr<Program> DepthProg;
 	shared_ptr<Program> DepthProgDebug;
 	shared_ptr<Program> ShadowProg;
 	shared_ptr<Program> DebugProg;
+
+	// Shapes
 	shared_ptr<Shape> world;
 	shared_ptr<Shape> shape;
 
+	// Textures
 	shared_ptr<Texture> texture0;
 	shared_ptr<Texture> texture1;
 	shared_ptr<Texture> texture2;
 
+	// Debug Settings
 	bool SHOW_LIGHT_COLOR = false;
 	bool SHOW_LIGHT_DEPTH = false;
 
-	int shadow = 1;
-	int FirstTime = 1;
-
-	GLuint depthMapFBO;
-	const GLuint S_WIDTH = 1024, S_HEIGHT = 1024;
-	GLuint depthMap;
+	GLuint ShadowMapFBO;
+	const GLuint ShadowMapWidth = 1024, ShadowMapHeight = 1024;
+	GLuint ShadowMapDepthTexture;
 
 	glm::vec3 g_light = glm::vec3(1, 1, 1);
 
-	//global data for ground plane
+	// Ground Plane vertex data
 	GLuint GroundVertexArray;
 	int GroundIndexCount;
 
-	//geometry for texture render
+	// Screen Quad vertex data (for debugging)
 	GLuint QuadVertexArray;
 	GLuint QuadVertexBuffer;
 
@@ -93,6 +95,10 @@ public:
 	glm::vec3 cameraPos;
 	float cameraMoveSpeed = 12.0f;
 
+
+	/////////////////////
+	// Event Callbacks //
+	/////////////////////
 
 	void mouseCallback(GLFWwindow* window, int but, int action, int mods)
 	{
@@ -181,6 +187,12 @@ public:
 	void resizeCallback(GLFWwindow* window, int w, int h)
 	{
 	}
+
+
+
+	///////////////////////
+	// Geometry Creation //
+	///////////////////////
 
 	// Create Geometry
 	void initGeom()
@@ -283,16 +295,21 @@ public:
 	}
 
 
+
+	///////////
+	// Setup //
+	///////////
+
 	// set up the FBO for the light's depth
 	void initShadow()
 	{
 		// generate the FBO for the shadow depth
-		glGenFramebuffers(1, &depthMapFBO);
+		glGenFramebuffers(1, &ShadowMapFBO);
 
 		// generate the texture
-		glGenTextures(1, &depthMap);
-		glBindTexture(GL_TEXTURE_2D, depthMap);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, S_WIDTH, S_HEIGHT,
+		glGenTextures(1, &ShadowMapDepthTexture);
+		glBindTexture(GL_TEXTURE_2D, ShadowMapDepthTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, ShadowMapWidth, ShadowMapHeight,
 			0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -301,13 +318,12 @@ public:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 		// bind with framebuffer's depth buffer
-		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, ShadowMapFBO);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, ShadowMapDepthTexture, 0);
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
-
 
 	void init(string const & RESOURCE_DIR)
 	{
@@ -406,6 +422,12 @@ public:
 		initShadow();
 	}
 
+
+
+	////////////////
+	// Transforms //
+	////////////////
+
 	void SetProjectionMatrix(shared_ptr<Program> curShade)
 	{
 		int width, height;
@@ -452,6 +474,12 @@ public:
 		glUniformMatrix4fv(curS->getUniform("M"), 1, GL_FALSE, value_ptr(ctm));
 	}
 
+
+
+	////////////
+	// Render //
+	////////////
+
 	/*
 	Draw the dog, sphere and ground plane
 	Textures can be turned on an off (as shadow map depth drawing does not need textures)
@@ -486,8 +514,7 @@ public:
 		CHECKED_GL_CALL(glBindVertexArray(0));
 	}
 
-	/* let's draw */
-	void render()
+	void render_UpdateCamera()
 	{
 		float t1 = (float) glfwGetTime();
 
@@ -508,31 +535,41 @@ public:
 			cameraPos += right * cameraMoveSpeed * dT;
 
 		cameraLookAt = cameraPos + forward;
+	}
 
-		mat4 LSpace;
+	glm::mat4 render_ShadowMap()
+	{
+		mat4 L;
 
-		if (shadow)
-		{
-			// set up light's depth map
-			glViewport(0, 0, S_WIDTH, S_HEIGHT);
-			glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-			glClear(GL_DEPTH_BUFFER_BIT);
-			glCullFace(GL_FRONT);
+		// set up light's depth map
+		glViewport(0, 0, ShadowMapWidth, ShadowMapHeight);
+		glBindFramebuffer(GL_FRAMEBUFFER, ShadowMapFBO);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glCullFace(GL_FRONT);
 
-			// set up shadow shader
-			// render scene
-			DepthProg->bind();
-			// TODO you will need to fix these
-			mat4 LO = SetOrthoMatrix(DepthProg);
-			mat4 LV = SetLightView(DepthProg, g_light, vec3(0, 0, 0), vec3(0, 1, 0));
-			drawScene(DepthProg, 0, 0);
-			DepthProg->unbind();
-			glCullFace(GL_BACK);
+		// set up shadow shader
+		// render scene
+		DepthProg->bind();
+		// TODO you will need to fix these
+		mat4 LO = SetOrthoMatrix(DepthProg);
+		mat4 LV = SetLightView(DepthProg, g_light, vec3(0, 0, 0), vec3(0, 1, 0));
+		drawScene(DepthProg, 0, 0);
+		DepthProg->unbind();
+		glCullFace(GL_BACK);
 
-			LSpace = LO * LV;
+		L = LO * LV;
 
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		return L;
+	}
+
+	/* let's draw */
+	void render()
+	{
+		render_UpdateCamera();
+		mat4 L = render_ShadowMap();
+
 
 		// Get current frame buffer size.
 		int width, height;
@@ -558,7 +595,7 @@ public:
 			// actually draw the light depth map
 			DebugProg->bind();
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, depthMap);
+			glBindTexture(GL_TEXTURE_2D, ShadowMapDepthTexture);
 			glUniform1i(DebugProg->getUniform("texBuf"), 0);
 			glBindVertexArray(QuadVertexArray);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -569,16 +606,19 @@ public:
 			// now render the scene like normal
 			// set up shadow shader
 			ShadowProg->bind();
+
 			/* also set up light depth map */
 			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, depthMap);
+			glBindTexture(GL_TEXTURE_2D, ShadowMapDepthTexture);
 			glUniform1i(ShadowProg->getUniform("shadowDepth"), 1);
 			glUniform3f(ShadowProg->getUniform("lightDir"), g_light.x, g_light.y, g_light.z);
+
 			// render scene
 			SetProjectionMatrix(ShadowProg);
 			SetView(ShadowProg);
+
 			// TODO: is there other uniform data that must be sent?
-			glUniformMatrix4fv(ShadowProg->getUniform("LS"), 1, GL_FALSE, value_ptr(LSpace));
+			glUniformMatrix4fv(ShadowProg->getUniform("LS"), 1, GL_FALSE, value_ptr(L));
 			drawScene(ShadowProg, ShadowProg->getUniform("Texture0"), 1);
 			ShadowProg->unbind();
 		}
