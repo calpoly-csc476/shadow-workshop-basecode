@@ -404,6 +404,7 @@ public:
 		// un-needed, but easier then modifying shape
 		DepthProgDebug->addAttribute("vertNor");
 		DepthProgDebug->addAttribute("vertTex");
+		DepthProgDebug->addUniform("Texture0");
 
 		ShadowProg->addUniform("P");
 		ShadowProg->addUniform("M");
@@ -586,7 +587,7 @@ public:
 			// render scene from light's point of view
 			SetOrthoMatrix(DepthProgDebug);
 			SetLightView(DepthProgDebug, g_light, vec3(0, 0, 0), vec3(0, 1, 0));
-			drawScene(DepthProgDebug, ShadowProg->getUniform("Texture0"), 0);
+			drawScene(DepthProgDebug, DepthProgDebug->getUniform("Texture0"), 1);
 			DepthProgDebug->unbind();
 		}
 		else if (SHOW_LIGHT_DEPTH)
