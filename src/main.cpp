@@ -48,8 +48,8 @@ public:
 	shared_ptr<Texture> texture1;
 	shared_ptr<Texture> texture2;
 
-	bool DEBUG_LIGHT = false;
-	bool GEOM_DEBUG = false;
+	bool SHOW_LIGHT_COLOR = false;
+	bool SHOW_LIGHT_DEPTH = false;
 
 	int shadow = 1;
 	int FirstTime = 1;
@@ -65,8 +65,8 @@ public:
 	int GroundIndexCount;
 
 	//geometry for texture render
-	GLuint quad_VertexArrayID;
-	GLuint quad_vertexbuffer;
+	GLuint QuadVertexArray;
+	GLuint QuadVertexBuffer;
 
 
 	/////////////////
@@ -135,6 +135,13 @@ public:
 		case GLFW_KEY_D:
 			moveRight = (action != GLFW_RELEASE);
 			break;
+
+		case GLFW_KEY_K:
+			SHOW_LIGHT_COLOR = (action != GLFW_RELEASE);
+			break;
+		case GLFW_KEY_L:
+			SHOW_LIGHT_DEPTH = (action != GLFW_RELEASE);
+			break;
 		};
 
 		if (action == GLFW_PRESS)
@@ -162,13 +169,6 @@ public:
 				break;
 			case GLFW_KEY_E:
 				g_light.x -= 0.25;
-				break;
-
-			case GLFW_KEY_G:
-				GEOM_DEBUG = ! GEOM_DEBUG;
-				break;
-			case GLFW_KEY_L:
-				DEBUG_LIGHT = ! DEBUG_LIGHT;
 				break;
 			}
 		}
@@ -259,10 +259,10 @@ public:
 	void initQuad()
 	{
 		// now set up a simple quad for rendering FBO
-		glGenVertexArrays(1, &quad_VertexArrayID);
-		glBindVertexArray(quad_VertexArrayID);
+		glGenVertexArrays(1, &QuadVertexArray);
+		glBindVertexArray(QuadVertexArray);
 
-		static const GLfloat g_quad_vertex_buffer_data[] =
+		const GLfloat g_quad_vertex_buffer_data[] =
 		{
 			-1.0f, -1.0f,  0.0f,
 			 1.0f, -1.0f,  0.0f,
@@ -272,9 +272,12 @@ public:
 			 1.0f,  1.0f,  0.0f,
 		};
 
-		glGenBuffers(1, &quad_vertexbuffer);
-		glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
+		glGenBuffers(1, &QuadVertexBuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, QuadVertexBuffer);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *) 0);
 
 		glBindVertexArray(0);
 	}
@@ -538,34 +541,28 @@ public:
 		// Clear framebuffer.
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		if (DEBUG_LIGHT)
+		if (SHOW_LIGHT_COLOR)
 		{
-			/* code to draw the light depth buffer */
 			// geometry style debug on light - test transforms, draw geometry from light
 			// perspective
-			if (GEOM_DEBUG)
-			{
-				DepthProgDebug->bind();
-				// render scene from light's point of view
-				SetOrthoMatrix(DepthProgDebug);
-				SetLightView(DepthProgDebug, g_light, vec3(0, 0, 0), vec3(0, 1, 0));
-				drawScene(DepthProgDebug, ShadowProg->getUniform("Texture0"), 0);
-				DepthProgDebug->unbind();
-			}
-			else
-			{
-				// actually draw the light depth map
-				DebugProg->bind();
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, depthMap);
-				glUniform1i(DebugProg->getUniform("texBuf"), 0);
-				glEnableVertexAttribArray(0);
-				glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
-				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *) 0);
-				glDrawArrays(GL_TRIANGLES, 0, 6);
-				glDisableVertexAttribArray(0);
-				DebugProg->unbind();
-			}
+			DepthProgDebug->bind();
+			// render scene from light's point of view
+			SetOrthoMatrix(DepthProgDebug);
+			SetLightView(DepthProgDebug, g_light, vec3(0, 0, 0), vec3(0, 1, 0));
+			drawScene(DepthProgDebug, ShadowProg->getUniform("Texture0"), 0);
+			DepthProgDebug->unbind();
+		}
+		else if (SHOW_LIGHT_DEPTH)
+		{
+			/* code to draw the light depth buffer */
+			// actually draw the light depth map
+			DebugProg->bind();
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, depthMap);
+			glUniform1i(DebugProg->getUniform("texBuf"), 0);
+			glBindVertexArray(QuadVertexArray);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+			DebugProg->unbind();
 		}
 		else
 		{
