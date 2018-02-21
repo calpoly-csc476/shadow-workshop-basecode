@@ -435,7 +435,7 @@ public:
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		float aspect = width / (float) height;
 		mat4 Projection = perspective(radians(50.0f), aspect, 0.1f, 100.0f);
-		glUniformMatrix4fv(curShade->getUniform("P"), 1, GL_FALSE, value_ptr(Projection));
+		CHECKED_GL_CALL(glUniformMatrix4fv(curShade->getUniform("P"), 1, GL_FALSE, value_ptr(Projection)));
 	}
 
 	/* TODO fix */
@@ -451,7 +451,7 @@ public:
 	void SetView(shared_ptr<Program> curShade)
 	{
 		mat4 Cam = glm::lookAt(cameraPos, cameraLookAt, vec3(0, 1, 0));
-		glUniformMatrix4fv(curShade->getUniform("V"), 1, GL_FALSE, value_ptr(Cam));
+		CHECKED_GL_CALL(glUniformMatrix4fv(curShade->getUniform("V"), 1, GL_FALSE, value_ptr(Cam)));
 	}
 
 	/* TODO fix */
@@ -467,12 +467,12 @@ public:
 	{
 		mat4 Trans = glm::translate(glm::mat4(1.0f), trans);
 		mat4 ctm = Trans;
-		glUniformMatrix4fv(curS->getUniform("M"), 1, GL_FALSE, value_ptr(ctm));
+		CHECKED_GL_CALL(glUniformMatrix4fv(curS->getUniform("M"), 1, GL_FALSE, value_ptr(ctm)));
 	}
 
 	void SetModel(mat4 ctm, shared_ptr<Program> curS)
 	{
-		glUniformMatrix4fv(curS->getUniform("M"), 1, GL_FALSE, value_ptr(ctm));
+		CHECKED_GL_CALL(glUniformMatrix4fv(curS->getUniform("M"), 1, GL_FALSE, value_ptr(ctm)));
 	}
 
 
@@ -551,7 +551,8 @@ public:
 		// set up shadow shader
 		// render scene
 		DepthProg->bind();
-		// TODO you will need to fix these
+
+		// TODO you will need to fix these to return correct matrices
 		mat4 LO = SetOrthoMatrix(DepthProg);
 		mat4 LV = SetLightView(DepthProg, g_light, vec3(0, 0, 0), vec3(0, 1, 0));
 		drawScene(DepthProg, 0, 0);
@@ -595,11 +596,11 @@ public:
 			/* code to draw the light depth buffer */
 			// actually draw the light depth map
 			DebugProg->bind();
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, ShadowMapDepthTexture);
-			glUniform1i(DebugProg->getUniform("texBuf"), 0);
-			glBindVertexArray(QuadVertexArray);
-			glDrawArrays(GL_TRIANGLES, 0, 6);
+			CHECKED_GL_CALL(glActiveTexture(GL_TEXTURE0));
+			CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, ShadowMapDepthTexture));
+			CHECKED_GL_CALL(glUniform1i(DebugProg->getUniform("texBuf"), 0));
+			CHECKED_GL_CALL(glBindVertexArray(QuadVertexArray));
+			CHECKED_GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
 			DebugProg->unbind();
 		}
 		else
@@ -609,17 +610,16 @@ public:
 			ShadowProg->bind();
 
 			/* also set up light depth map */
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, ShadowMapDepthTexture);
-			glUniform1i(ShadowProg->getUniform("shadowDepth"), 1);
-			glUniform3f(ShadowProg->getUniform("lightDir"), g_light.x, g_light.y, g_light.z);
+			CHECKED_GL_CALL(glActiveTexture(GL_TEXTURE1));
+			CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, ShadowMapDepthTexture));
+			CHECKED_GL_CALL(glUniform1i(ShadowProg->getUniform("shadowDepth"), 1));
+			CHECKED_GL_CALL(glUniform3f(ShadowProg->getUniform("lightDir"), g_light.x, g_light.y, g_light.z));
 
 			// render scene
 			SetProjectionMatrix(ShadowProg);
 			SetView(ShadowProg);
 
 			// TODO: is there other uniform data that must be sent?
-			glUniformMatrix4fv(ShadowProg->getUniform("LS"), 1, GL_FALSE, value_ptr(L));
 			drawScene(ShadowProg, ShadowProg->getUniform("Texture0"), 1);
 			ShadowProg->unbind();
 		}
