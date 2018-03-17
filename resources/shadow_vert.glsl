@@ -6,6 +6,7 @@ layout(location = 2) in vec2 vertTex;
 uniform mat4 P;
 uniform mat4 V;
 uniform mat4 M;
+uniform mat4 LS;
 
 uniform vec3 lightDir;
 
@@ -24,6 +25,9 @@ void main() {
 
 	/* the position in world coordinates */
 	out_struct.fPos = (M*vec4(vertPos, 1.0)).xyz;
+
+	/* The vertex in light space */
+	out_struct.fPosLS = LS*vec4(out_struct.fPos, 1.0);
 
 	/* the normal */
 	out_struct.fragNor = (M*vec4(vertNor, 0.0)).xyz;
