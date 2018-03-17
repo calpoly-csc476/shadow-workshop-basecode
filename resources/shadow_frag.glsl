@@ -20,13 +20,21 @@ float TestShadow(vec4 LSfPos) {
 
 	//1: shift the coordinates from -1, 1 to 0 ,1
 	vec3 shift = (LSfPos.xyz + vec3(1.0))/2.0;
+
+	if (shift.x < 0.0 || shift.x > 1.0 ||
+		shift.y < 0.0 || shift.y > 1.0 ||
+		shift.z < 0.0 || shift.z > 1.0)
+	{
+		return 0.0;
+	}
+
 	//2: read off the stored depth (.) from the ShadowDepth, using the shifted.xy
 	float curD = shift.z;
 	float lightD = texture(shadowDepth, shift.xy).r;
 	//3: compare to the current depth (.z) of the projected depth
-	//4: return 1 if the point is shadowed
 	if (curD - bias > lightD)
 	{
+		//4: return 1 if the point is shadowed
 		return 1.0;
 	}
 	else
