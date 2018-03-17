@@ -441,10 +441,8 @@ public:
 	/* TODO fix */
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade)
 	{
-		mat4 ortho = mat4(1.0);
-
-		// fill in the glUniform call to send to the right shader!
-
+		mat4 ortho = glm::ortho(-10.0, 10.0, -10.0, 10.0, 0.1, 30.0);
+		glUniformMatrix4fv(curShade->getUniform("LP"), 1, GL_FALSE, value_ptr(ortho));
 		return ortho;
 	}
 
@@ -458,10 +456,8 @@ public:
 	/* TODO fix */
 	mat4 SetLightView(shared_ptr<Program> curShade, vec3 pos, vec3 LA, vec3 up)
 	{
-		mat4 Cam = mat4(1.0);
-
-		// fill in the glUniform call to send to the right shader!
-
+		mat4 Cam = glm::lookAt(pos, LA, up);
+		glUniformMatrix4fv(curShade->getUniform("LV"), 1, GL_FALSE, value_ptr(Cam));
 		return Cam;
 	}
 
