@@ -608,15 +608,17 @@ public:
 			// set up shadow shader
 			ShadowProg->bind();
 
-			/* TODO: also set up light depth map */
+			CHECKED_GL_CALL(glActiveTexture(GL_TEXTURE1));
+			CHECKED_GL_CALL(glBindTexture(GL_TEXTURE_2D, ShadowMapDepthTexture));
+			CHECKED_GL_CALL(glUniform1i(ShadowProg->getUniform("shadowDepth"), 1));
 
 			CHECKED_GL_CALL(glUniform3f(ShadowProg->getUniform("lightDir"), g_light.x, g_light.y, g_light.z));
 
 			// view/proj matrices
 			SetProjectionMatrix(ShadowProg);
 			SetView(ShadowProg);
-
-			// TODO: is there other uniform data that must be sent?
+			
+			glUniformMatrix4fv(ShadowProg->getUniform("LS"), 1, GL_FALSE, value_ptr(L));
 
 			drawScene(ShadowProg, ShadowProg->getUniform("Texture0"), 1);
 			ShadowProg->unbind();
