@@ -441,7 +441,7 @@ public:
 	/* TODO fix */
 	mat4 SetOrthoMatrix(shared_ptr<Program> curShade)
 	{
-		mat4 ortho = glm::ortho(-10.0, 10.0, -10.0, 10.0, 0.1, 30.0);
+		mat4 ortho = glm::ortho(-10.f, 10.f, -10.f, 10.f, 0.1f, 30.f);
 		glUniformMatrix4fv(curShade->getUniform("LP"), 1, GL_FALSE, value_ptr(ortho));
 		return ortho;
 	}
